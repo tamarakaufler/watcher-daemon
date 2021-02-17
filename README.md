@@ -2,6 +2,8 @@
 
 Based on https://github.com/tamarakaufler/go-files-watcher. Version 2 of the same functionality.
 
+Configuration of Daemon values is done through environment variables.
+
 ### TODO
 Add more details
 
@@ -13,11 +15,11 @@ The configurable options are:
 
 |                |                  |                default                                        |
 |:---------------|:-----------------|:-------------------------------------------------------------:|
-|  BasePath      |  string          |   current dir (directory that the watcher daemon starts monitoring) |
-|  Extension     |  string          |   .go (currently only one)                                    |
-|  Command       |  string          |   echo "Hello world" (command to run upon detected change)    |
-|  Excluded      |  list of strings |   none (a list of strings/regexes specifying files to exclude) |                            |
-|  Frequency     |  int32           |   5 (sec) (repeat of the check)                               |
+|  BasePath      |  WATCHER_DAEMON_BASE_PATH  |   current dir (directory that the watcher daemon starts monitoring) |
+|  Extension     |  WATCHER_DAEMON_EXTENSION  |   .go (currently only one)                                    |
+|  Command       |  WATCHER_DAEMON_COMMAND    |   echo "Hello world" (command to run upon detected change)    |
+|  Excluded      |  WATCHER_DAEMON_EXCLUDED   |   none (comma separated strings/regexes specifying files to exclude) |                            |
+|  Frequency     |  WATCHER_DAEMON_FREQUENCY  |   5 (sec) (repeat of the check)                               |
 
 ## Implementation
 
@@ -38,3 +40,8 @@ of the files and cancelling already running gouroutines.
 Tests are provided.
 
 Quality of the Go code is checked using the golangci-lint utility.
+
+## Usage
+
+make build
+WATCHER_DAEMON_EXCLUDED=internal/daemon/fixtures/basepath  WATCHER_DAEMON_FREQUENCY=3 make run
