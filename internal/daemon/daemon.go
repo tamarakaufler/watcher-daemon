@@ -83,14 +83,6 @@ func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
 		ctxR, cancel := context.WithCancel(ctx)
 		select {
 		case <-tick.C:
-			// implementation 1
-			// d.walkThroughFiles(ctxR, doneCh)
-
-			// implementation 2
-			// files := d.CollectFiles(ctxR)
-			// d.processFiles(ctxR, files, doneCh)
-
-			// implementation 3
 			files, err := d.CollectFiles(ctxR)
 			if err != nil {
 				fmt.Println(err)

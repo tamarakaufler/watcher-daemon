@@ -23,12 +23,6 @@ The configurable options are:
 
 ## Implementation
 
-There are 3 progressive implementations, from the initial one using directly filepath.Walk,
-an intemediate one as a preparation for the third parallelized third implementation. First two
-versions are commented out (in the (*Daemon).Watch method).
-
-### Details
-
 The base directory, file extension and exclusions (path, file name (wildcard character * can be used))
 provide the check criteria, together with the frequency, at which the check run happens.
 
@@ -43,5 +37,5 @@ Quality of the Go code is checked using the golangci-lint utility.
 
 ## Usage
 
-make build
+make all
 WATCHER_DAEMON_EXCLUDED=internal/daemon/fixtures/basepath  WATCHER_DAEMON_FREQUENCY=3 make run

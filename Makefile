@@ -24,7 +24,7 @@ build: LDFLAGS += -X 'main.Version=${VERSION}'
 build: LDFLAGS += -X 'main.GitSHA=${GIT_SHA}'
 build: LDFLAGS += -X 'main.ServiceName=${NAME}'
 build:
-	$(info building binary to cmd/bin/$(NAME) with flags $(LDFLAGS))
+	$(info building binary cmd/bin/$(NAME) with flags $(LDFLAGS))
 	@go build -race -o ./cmd/bin/$(NAME) -ldflags "$(LDFLAGS)" ./cmd/watcher-daemon/main.go
 
 run:
