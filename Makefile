@@ -25,7 +25,10 @@ build: LDFLAGS += -X 'main.GitSHA=${GIT_SHA}'
 build: LDFLAGS += -X 'main.ServiceName=${NAME}'
 build:
 	$(info building binary to cmd/bin/$(NAME) with flags $(LDFLAGS))
-	go build -race -o cmd/bin/$(NAME) -ldflags "$(LDFLAGS)" ./cmd/watcher-daemon/main.go
+	@go build -race -o ./cmd/bin/$(NAME) -ldflags "$(LDFLAGS)" ./cmd/watcher-daemon/main.go
+
+run:
+	cmd/bin/$(NAME)
 
 cover:
 	@LOG_LEVEL=debug TMP_COV=$(shell mktemp); \
@@ -34,4 +37,4 @@ cover:
 
 all: deps lint test build
 
-.PHONY: deps lint test cover build
+.PHONY: deps lint test cover build run

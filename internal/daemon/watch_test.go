@@ -195,7 +195,7 @@ func TestDaemon_IsExcluded(t *testing.T) {
 		// 	wantErr: false,
 		// },
 		{
-			name: "file is excluded - string path exclusion 1",
+			name: "file is excluded - string file exclusion 1",
 			fields: fields{
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
@@ -238,6 +238,22 @@ func TestDaemon_IsExcluded(t *testing.T) {
 			args: args{
 				path: "fixtures/basepath/subdir2/test2.go",
 				name: "test2.go",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "file is excluded - string path exclusion",
+			fields: fields{
+				BasePath:  "fixtures/basepath",
+				Extention: ".go",
+				Command:   "echo \"Hello world\"",
+				Excluded:  "fixtures/basepath/subdir1",
+				Frequency: "3",
+			},
+			args: args{
+				path: "fixtures/basepath/subdir1/test1.go",
+				name: "test1.go",
 			},
 			want:    true,
 			wantErr: false,

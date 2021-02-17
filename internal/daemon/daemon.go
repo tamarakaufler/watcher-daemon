@@ -59,6 +59,8 @@ func New() (*Daemon, error) {
 	d.cmdMux = &sync.Mutex{}
 	d.doneMux = &sync.Mutex{}
 
+	d.doneChan = make(chan struct{})
+
 	return d, err
 }
 
