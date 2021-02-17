@@ -4,9 +4,11 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tamarakaufler/watcher-daemon/internal/daemon"
 )
 
@@ -18,8 +20,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 		BasePath  string
 		Extention string
 		Command   string
-		Excluded  []string
-		Frequency int32
+		Excluded  string
+		Frequency string
 	}
 	tests := []struct {
 		name    string
@@ -33,8 +35,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{},
-				Frequency: 3,
+				Excluded:  "",
+				Frequency: "3",
 			},
 			want:    []string{"test.go", "test1.go", "test.go", "test2.go", "test.go"},
 			wantErr: false,
@@ -45,8 +47,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test.go"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test.go",
+				Frequency: "3",
 			},
 			want:    []string{"test1.go", "test.go", "test2.go", "test.go"},
 			wantErr: false,
@@ -57,8 +59,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test.go", "fixtures/basepath/subdir2/test2.go"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test.go,fixtures/basepath/subdir2/test2.go",
+				Frequency: "3",
 			},
 			want:    []string{"test1.go", "test.go", "test.go"},
 			wantErr: false,
@@ -69,8 +71,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/*", "fixtures/basepath/subdir2/test.go"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/*,fixtures/basepath/subdir2/test.go",
+				Frequency: "3",
 			},
 			want:    []string{"test2.go", "test.go"},
 			wantErr: false,
@@ -81,8 +83,8 @@ func TestDaemon_CollectFiles(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"test.go"},
-				Frequency: 3,
+				Excluded:  "test.go",
+				Frequency: "3",
 			},
 			want:    []string{"test1.go", "test2.go"},
 			wantErr: false,
@@ -91,18 +93,14 @@ func TestDaemon_CollectFiles(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			d := daemon.New(
-				daemon.WithBasePath(tt.fields.BasePath),
-				daemon.WithCommand(tt.fields.Command),
-				daemon.WithExcluded(tt.fields.Excluded),
-				daemon.WithFrequency(tt.fields.Frequency),
-			)
+			os.Setenv("WATCHER_DAEMON_BASE_PATH", tt.fields.BasePath)
+			os.Setenv("WATCHER_DAEMON_EXTENSION", tt.fields.Extention)
+			os.Setenv("WATCHER_DAEMON_COMMAND", tt.fields.Command)
+			os.Setenv("WATCHER_DAEMON_EXCLUDED", tt.fields.Excluded)
+			os.Setenv("WATCHER_DAEMON_FREQUENCY", tt.fields.Frequency)
 
-			// got, err := d.CollectFiles(ctx)
-			// gotNames := extractNames(got)
-			// if !reflect.DeepEqual(gotNames, tt.want) {
-			// 	t.Errorf("Daemon.CollectFiles() = %v, want %v", gotNames, tt.want)
-			// }
+			d, err := daemon.New()
+			require.Nil(t, err, "daemon creation failure")
 
 			got, err := d.CollectFiles(ctx)
 			gotNames := extractNames(got)
@@ -133,8 +131,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 		BasePath  string
 		Extention string
 		Command   string
-		Excluded  []string
-		Frequency int32
+		Excluded  string
+		Frequency string
 	}
 	type args struct {
 		path string
@@ -153,8 +151,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/*"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/*",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/test1.go",
@@ -169,8 +167,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"test2.go", "fixtures/basepath/subdir1/test1*"},
-				Frequency: 3,
+				Excluded:  "test2.go,fixtures/basepath/subdir1/test1*",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/test1.go",
@@ -186,8 +184,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 		// 		BasePath:  "fixtures/basepath",
 		// 		Extention: ".go",
 		// 		Command:   "echo \"Hello world\"",
-		// 		Excluded:  []string{"test2.go", "fixtures/basepath/*/test.go"},
-		// 		Frequency: 3,
+		// 		Excluded:  "test2.gos,fixtures/basepath/*/test.go",
+		// 		Frequency: "3",
 		// 	},
 		// 	args: args{
 		// 		path: "fixtures/basepath/subdir1/test.go",
@@ -202,8 +200,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test.go"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test.go",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/test.go",
@@ -218,8 +216,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"test2.go", "fixtures/basepath/subdir1/test.go"},
-				Frequency: 3,
+				Excluded:  "test2.go,fixtures/basepath/subdir1/test.go",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir2/test2.go",
@@ -234,8 +232,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"test2.go", "fixtures/basepath/subdir1/test.go"},
-				Frequency: 3,
+				Excluded:  "test2.go,fixtures/basepath/subdir1/test.go",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir2/test2.go",
@@ -250,8 +248,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test.g?"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test.g?",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/test.go",
@@ -267,8 +265,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 		// 		BasePath:  "fixtures/basepath",
 		// 		Extention: ".go",
 		// 		Command:   "echo \"Hello world\"",
-		// 		Excluded:  []string{"fixtures/basepath/subdir1/test.?o"},
-		// 		Frequency: 3,
+		// 		Excluded:  "fixtures/basepath/subdir1/test.?o",
+		// 		Frequency: "3",
 		// 	},
 		// 	args: args{
 		// 		path: "fixtures/basepath/subdir1/test.go",
@@ -283,8 +281,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test.go"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test.go",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/test2.go",
@@ -299,8 +297,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/test*"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/test*",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir1/aaa.go",
@@ -315,8 +313,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures/basepath/subdir1/*"},
-				Frequency: 3,
+				Excluded:  "fixtures/basepath/subdir1/*",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir2/aaa.go",
@@ -331,8 +329,8 @@ func TestDaemon_IsExcluded(t *testing.T) {
 				BasePath:  "fixtures/basepath",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{"fixtures(a-]basepath/subdir1/*"},
-				Frequency: 3,
+				Excluded:  "fixtures(a-]basepath/subdir1/*",
+				Frequency: "3",
 			},
 			args: args{
 				path: "fixtures/basepath/subdir2/aaa.go",
@@ -344,12 +342,15 @@ func TestDaemon_IsExcluded(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := daemon.New(
-				daemon.WithBasePath(tt.fields.BasePath),
-				daemon.WithCommand(tt.fields.Command),
-				daemon.WithExcluded(tt.fields.Excluded),
-				daemon.WithFrequency(tt.fields.Frequency),
-			)
+			os.Setenv("WATCHER_DAEMON_BASE_PATH", tt.fields.BasePath)
+			os.Setenv("WATCHER_DAEMON_EXTENSION", tt.fields.Extention)
+			os.Setenv("WATCHER_DAEMON_COMMAND", tt.fields.Command)
+			os.Setenv("WATCHER_DAEMON_EXCLUDED", tt.fields.Excluded)
+			os.Setenv("WATCHER_DAEMON_FREQUENCY", tt.fields.Frequency)
+
+			d, err := daemon.New()
+			require.Nil(t, err, "daemon creation failure")
+
 			got, err := d.IsExcluded(ctx, tt.args.path, tt.args.name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Daemon.IsExcluded() error = %v, wantErr %v", err, tt.wantErr)
@@ -368,8 +369,8 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 		BasePath  string
 		Extention string
 		Command   string
-		Excluded  []string
-		Frequency int32
+		Excluded  string
+		Frequency string
 	}
 	type args struct {
 		ctx    context.Context
@@ -387,8 +388,8 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 				BasePath:  "fixtures/basepath/subdir1",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{},
-				Frequency: 2,
+				Excluded:  "",
+				Frequency: "2",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -402,8 +403,8 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 				BasePath:  "fixtures/basepath/subdir2",
 				Extention: ".go",
 				Command:   "echo \"Hello world\"",
-				Excluded:  []string{},
-				Frequency: 3,
+				Excluded:  "",
+				Frequency: "3",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -415,16 +416,20 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			d := daemon.New(
-				daemon.WithBasePath(tt.fields.BasePath),
-				daemon.WithCommand(tt.fields.Command),
-				daemon.WithExcluded(tt.fields.Excluded),
-				daemon.WithFrequency(tt.fields.Frequency),
-			)
+			os.Setenv("WATCHER_DAEMON_BASE_PATH", tt.fields.BasePath)
+			os.Setenv("WATCHER_DAEMON_EXTENSION", tt.fields.Extention)
+			os.Setenv("WATCHER_DAEMON_COMMAND", tt.fields.Command)
+			os.Setenv("WATCHER_DAEMON_EXCLUDED", tt.fields.Excluded)
+			os.Setenv("WATCHER_DAEMON_FREQUENCY", tt.fields.Frequency)
+
+			d, err := daemon.New()
+			require.Nil(t, err, "daemon creation failure")
 
 			// Within this gouroutine we verify
 			go func() {
-				timeout := time.After(time.Duration(tt.fields.Frequency+1) * time.Second)
+				fr, err := strconv.Atoi(tt.fields.Frequency)
+				require.Nil(t, err)
+				timeout := time.After(time.Duration(fr+1) * time.Second)
 				if tt.expectChange {
 					select {
 					case <-tt.args.doneCh: // receiving on this channel is expected if a change is detected

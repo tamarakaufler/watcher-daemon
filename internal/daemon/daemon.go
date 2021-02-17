@@ -1,16 +1,34 @@
 package daemon
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/pkg/errors"
 )
 
-// Daemon contains configuriation for running the watcher
+// WatcherDaemon specifies what methods must be implemented
+type WatcherDaemon interface {
+	Watch(ctx context.Context, sigCh chan os.Signal)
+}
+
+// verifying a Daemon implements all required methods, ie is a WatcherDaemon
+var _ (WatcherDaemon) = (*Daemon)(nil)
+
+// Daemon contains configuration for running the watcher
 type Daemon struct {
-	BasePath  string
-	Extention string
-	Excluded  []string
-	Frequency int32
+	BasePath  string `env:"WATCHER_DAEMON_BASE_PATH" envDefault:"."`
+	Extention string `env:"WATCHER_DAEMON_EXTENSION" envDefault:".go"`
+	Excluded  string `env:"WATCHER_DAEMON_EXCLUDED" envDefault:""`    // provided as a comma separated string
+	Frequency string `env:"WATCHER_DAEMON_FREQUENCY" envDefault:"10"` // run frequency in seconds
+
+	excluded  []string
 	frequency time.Duration
 
 	// mutex protects sending on the doneChan
@@ -19,69 +37,85 @@ type Daemon struct {
 
 	// mutex protects running of the command
 	cmdMux  *sync.Mutex
-	Command string
+	Command string `env:"WATCHER_DAEMON_COMMAND" envDefault:"echo \"Hello world\""`
 }
-
-// Option provides a way to customise the
-type Option func(*Daemon)
 
 // New is a constructor providing a new instance of a Daemon
-func New(ops ...Option) *Daemon {
-	f := int32(15)
-	d := &Daemon{
-		BasePath:  ".",
-		Extention: ".go",
-		Excluded:  []string{},
-		Frequency: f,
-		frequency: time.Duration(time.Duration(f) * time.Second),
-
-		cmdMux:  &sync.Mutex{},
-		Command: "echo \"Hello world\"",
-
-		doneMux:  &sync.Mutex{},
-		doneChan: make(chan struct{}),
+func New() (*Daemon, error) {
+	d := &Daemon{}
+	err := env.Parse(d)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating a Daemon instance")
 	}
 
-	for _, o := range ops {
-		o(d)
-	}
+	d.excluded = strings.Split(d.Excluded, ",")
 
-	return d
+	fr, err := strconv.Atoi(d.Frequency)
+	if err != nil {
+		return nil, err
+	}
+	d.frequency = time.Duration(time.Duration(fr) * time.Second)
+
+	d.cmdMux = &sync.Mutex{}
+	d.doneMux = &sync.Mutex{}
+
+	return d, err
 }
 
-// WithBasePath allows to override default BasePath configuration.
-func WithBasePath(bp string) Option {
-	return func(d *Daemon) {
-		d.BasePath = bp
-	}
-}
+// Watch watches for changes in files at regular intervals
+func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
+	fmt.Print("\nStarting the watcher daemon ⌚ 👀 ... \n\n")
+	cmdParts := strings.Split(d.Command, " ")
 
-// WithExtension allows to override default file extension configuration.
-func WithExtension(ex string) Option {
-	return func(d *Daemon) {
-		d.Extention = ex
-	}
-}
+	// use when a change is detected to avoid processing further files
+	doneCh := make(chan struct{})
+	// use when a change is detected, after successfully running the command,
+	// to cancel already created goroutines
+	cancelCh := make(chan struct{})
 
-// WithCommand allows to override default configuration of a command
-// to run when a file change is detected.
-func WithCommand(c string) Option {
-	return func(d *Daemon) {
-		d.Command = c
-	}
-}
+	// Starts a gouroutine checking on the run outcome, running the command as required
+	d.runOutcomeChecker(cmdParts, sigCh, doneCh, cancelCh)
 
-// WithExcluded allows to provide a list of paths to exclude.
-func WithExcluded(ex []string) Option {
-	return func(d *Daemon) {
-		d.Excluded = ex
-	}
-}
+	tick := time.NewTicker(d.frequency)
+	for {
+		ctxR, cancel := context.WithCancel(ctx)
+		select {
+		case <-tick.C:
+			// implementation 1
+			// d.walkThroughFiles(ctxR, doneCh)
 
-// WithFrequency allows to override default frequency configuration.
-func WithFrequency(f int32) Option {
-	return func(d *Daemon) {
-		d.Frequency = f
-		d.frequency = time.Duration(time.Duration(f) * time.Second)
+			// implementation 2
+			// files := d.CollectFiles(ctxR)
+			// d.processFiles(ctxR, files, doneCh)
+
+			// implementation 3
+			files, err := d.CollectFiles(ctxR)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			//nolint:lll
+			// Creating a buffered channel will avoid leaking goroutines. This would  // happen if there are still running goroutines after one finds a change
+			// and sends to a done channel. If the done channel is not buffered, then
+			// some of the running gouroutines may also try to send to the done
+			// channel and would be blocked forever, ie would start leaking.
+			doneAllCh := make(chan struct{}, len(files))
+
+			go func(doneAllCh, doneCh chan struct{}) {
+				select {
+				case <-doneAllCh:
+					d.doneMux.Lock()
+					doneCh <- struct{}{}
+					d.doneMux.Unlock()
+				case <-time.After(d.frequency * 2):
+					return
+				}
+			}(doneAllCh, doneCh)
+
+			d.ProcessFilesInParallel(ctxR, files, doneAllCh)
+		case <-cancelCh:
+			cancel()
+		}
 	}
 }

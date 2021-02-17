@@ -34,4 +34,4 @@ cover:
 
 all: deps lint test build
 
-.PHONY: deps lint test cover
+.PHONY: deps lint test cover build

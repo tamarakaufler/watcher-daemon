@@ -23,64 +23,6 @@ type FileInfo struct {
 	ModTime time.Time
 }
 
-// Watch watches for changes in files at regular intervals
-func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
-	fmt.Print("\nStarting the watcher daemon ⌚ 👀 ... \n\n")
-	cmdParts := strings.Split(d.Command, " ")
-
-	// use when a change is detected to avoid processing further files
-	doneCh := make(chan struct{})
-	// use when a change is detected, after successfully running the command,
-	// to cancel already created goroutines
-	cancelCh := make(chan struct{})
-
-	// Starts a gouroutine checking on the run outcome, running the command as required
-	d.runOutcomeChecker(cmdParts, sigCh, doneCh, cancelCh)
-
-	tick := time.NewTicker(d.frequency)
-	for {
-		ctxR, cancel := context.WithCancel(ctx)
-		select {
-		case <-tick.C:
-			// implementation 1
-			// d.walkThroughFiles(ctxR, doneCh)
-
-			// implementation 2
-			// files := d.CollectFiles(ctxR)
-			// d.processFiles(ctxR, files, doneCh)
-
-			// implementation 3
-			files, err := d.CollectFiles(ctxR)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			//nolint:lll
-			// Creating a buffered channel will avoid leaking goroutines. This would  // happen if there are still running goroutines after one finds a change
-			// and sends to a done channel. If the done channel is not buffered, then
-			// some of the running gouroutines may also try to send to the done
-			// channel and would be blocked forever, ie would start leaking.
-			doneAllCh := make(chan struct{}, len(files))
-
-			go func(doneAllCh, doneCh chan struct{}) {
-				select {
-				case <-doneAllCh:
-					d.doneMux.Lock()
-					doneCh <- struct{}{}
-					d.doneMux.Unlock()
-				case <-time.After(d.frequency * 2):
-					return
-				}
-			}(doneAllCh, doneCh)
-
-			d.ProcessFilesInParallel(ctxR, files, doneAllCh)
-		case <-cancelCh:
-			cancel()
-		}
-	}
-}
-
 // CollectFiles checks if any watched file has changed.
 // The Walk function continues the walk while theere is no error and stops
 // when the filepath.WalkFunc exits with error.
@@ -210,7 +152,7 @@ LOOP:
 func (d *Daemon) IsExcluded(ctx context.Context, path, name string) (bool, error) {
 	toExclude := false
 
-	for _, ex := range d.Excluded {
+	for _, ex := range d.excluded {
 		// deal with regex
 		if strings.ContainsAny(ex, "*?{}[]()+") {
 			r, err := regexp.Compile(ex)
