@@ -38,4 +38,5 @@ Quality of the Go code is checked using the golangci-lint utility.
 ## Usage
 
 make all
+
 WATCHER_DAEMON_EXCLUDED=internal/daemon/fixtures/basepath  WATCHER_DAEMON_FREQUENCY=3 make run
