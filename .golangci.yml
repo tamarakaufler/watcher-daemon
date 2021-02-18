@@ -1,0 +1,105 @@
+run:
+  tests: true
+  timeout: 5m
+  modules-download-mode: readonly
+  build-tags:
+    - acceptance_test
+linters:
+  disable-all: true
+  enable:
+    # Default linters
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    # Additional linters
+    #- asciicheck
+    #- bodyclose
+    - depguard
+    #- dogsled
+    #- dupl
+    #- errorlint
+    #- exhaustive
+    #- exhaustivestruct
+    #- exportloopref
+    #- forbidigo
+    - funlen
+    #- gci
+    #- gochecknoglobals
+    #- gochecknoinits
+    #- gocognit
+    #- goconst
+    #- gocritic
+    #- gocyclo
+    #- godot
+    #- godox
+    #- goerr113
+    - gofmt
+    #- gofumpt
+    #- goheader
+    #- goimports
+    #- golint # Superseded by stylecheck
+    #- gomnd
+    #- gomodguard # Doesn't do anything unless configured
+    #- goprintffuncname
+    #- gosec
+    #- interfacer
+    - lll
+    #- makezero
+    #- maligned
+    #- misspell
+    #- nakedret
+    - nestif
+    #- nlreturn
+    #- noctx
+    #- nolintlint
+    #- paralleltest
+    #- prealloc
+    #- rowserrcheck
+    #- scopelint
+    #- sqlclosecheck
+    - stylecheck
+    - testpackage
+    #- thelper
+    #- tparallel
+    #- unconvert
+    #- unparam
+    #- whitespace
+    #- wrapcheck
+    #- wsl
+issues:
+  exclude-rules:
+  - linters:
+    - staticcheck
+    text: "SA1019:" # github.com/golang/protobuf is deprecated
+  - path: _test\.go
+    linters:
+      - varcheck
+      - funlen
+      - lll
+  - linters:
+    - lll
+    source: "^//go:generate "
+  - linters:
+    - lll
+    source: '`env:'
+linters-settings:
+  depguard:
+    list-type: blacklist
+    packages:
+      # Generally used for debugging and should not appear in our codebase
+      - github.com/davecgh/go-spew/spew
+      # Has a serious unresolved defect and is considered unsafe
+      # See https://github.com/satori/go.uuid/issues/73
+      - github.com/satori/go.uuid
+  lll:
+    # max line length, lines longer will be reported. Default is 120.
+    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
+    line-length: 120
+    tab-width: 1
