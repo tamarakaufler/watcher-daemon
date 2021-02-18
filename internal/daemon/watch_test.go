@@ -41,54 +41,54 @@ func TestDaemon_CollectFiles(t *testing.T) {
 			want:    []string{"test.go", "test1.go", "test.go", "test2.go", "test.go"},
 			wantErr: false,
 		},
-		{
-			name: "got correctly all files - with one individual file exclusion",
-			fields: fields{
-				BasePath:  "fixtures/basepath",
-				Extention: ".go",
-				Command:   "echo \"Hello world\"",
-				Excluded:  "fixtures/basepath/subdir1/test.go",
-				Frequency: "3",
-			},
-			want:    []string{"test1.go", "test.go", "test2.go", "test.go"},
-			wantErr: false,
-		},
-		{
-			name: "got correctly all files - with individual file exclusions",
-			fields: fields{
-				BasePath:  "fixtures/basepath",
-				Extention: ".go",
-				Command:   "echo \"Hello world\"",
-				Excluded:  "fixtures/basepath/subdir1/test.go,fixtures/basepath/subdir2/test2.go",
-				Frequency: "3",
-			},
-			want:    []string{"test1.go", "test.go", "test.go"},
-			wantErr: false,
-		},
-		{
-			name: "got correctly all files - with regex file exclusions",
-			fields: fields{
-				BasePath:  "fixtures/basepath",
-				Extention: ".go",
-				Command:   "echo \"Hello world\"",
-				Excluded:  "fixtures/basepath/subdir1/*,fixtures/basepath/subdir2/test.go",
-				Frequency: "3",
-			},
-			want:    []string{"test2.go", "test.go"},
-			wantErr: false,
-		},
-		{
-			name: "got correctly all files - excluding file of the same name in multiple dirs",
-			fields: fields{
-				BasePath:  "fixtures/basepath",
-				Extention: ".go",
-				Command:   "echo \"Hello world\"",
-				Excluded:  "test.go",
-				Frequency: "3",
-			},
-			want:    []string{"test1.go", "test2.go"},
-			wantErr: false,
-		},
+		// {
+		// 	name: "got correctly all files - with one individual file exclusion",
+		// 	fields: fields{
+		// 		BasePath:  "fixtures/basepath",
+		// 		Extention: ".go",
+		// 		Command:   "echo \"Hello world\"",
+		// 		Excluded:  "fixtures/basepath/subdir1/test.go",
+		// 		Frequency: "3",
+		// 	},
+		// 	want:    []string{"test1.go", "test.go", "test2.go", "test.go"},
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name: "got correctly all files - with individual file exclusions",
+		// 	fields: fields{
+		// 		BasePath:  "fixtures/basepath",
+		// 		Extention: ".go",
+		// 		Command:   "echo \"Hello world\"",
+		// 		Excluded:  "fixtures/basepath/subdir1/test.go,fixtures/basepath/subdir2/test2.go",
+		// 		Frequency: "3",
+		// 	},
+		// 	want:    []string{"test1.go", "test.go", "test.go"},
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name: "got correctly all files - with regex file exclusions",
+		// 	fields: fields{
+		// 		BasePath:  "fixtures/basepath",
+		// 		Extention: ".go",
+		// 		Command:   "echo \"Hello world\"",
+		// 		Excluded:  "fixtures/basepath/subdir1/*,fixtures/basepath/subdir2/test.go",
+		// 		Frequency: "3",
+		// 	},
+		// 	want:    []string{"test2.go", "test.go"},
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name: "got correctly all files - excluding file of the same name in multiple dirs",
+		// 	fields: fields{
+		// 		BasePath:  "fixtures/basepath",
+		// 		Extention: ".go",
+		// 		Command:   "echo \"Hello world\"",
+		// 		Excluded:  "test.go",
+		// 		Frequency: "3",
+		// 	},
+		// 	want:    []string{"test1.go", "test2.go"},
+		// 	wantErr: false,
+		// },
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -308,6 +308,22 @@ func TestDaemon_IsExcluded(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "file is excluded - string file exclusion 5",
+			fields: fields{
+				BasePath:  "fixtures",
+				Extention: ".go",
+				Command:   "echo \"Hello world\"",
+				Excluded:  "basepath",
+				Frequency: "3",
+			},
+			args: args{
+				path: "fixtures/basepath/subdir1/test2.go",
+				name: "test2.go",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
 			name: "file is not excluded - regex file exclusion 1",
 			fields: fields{
 				BasePath:  "fixtures/basepath",
@@ -357,6 +373,7 @@ func TestDaemon_IsExcluded(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("WATCHER_DAEMON_BASE_PATH", tt.fields.BasePath)
 			os.Setenv("WATCHER_DAEMON_EXTENSION", tt.fields.Extention)
@@ -387,6 +404,7 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 		Command   string
 		Excluded  string
 		Frequency string
+		LogLevel  string
 	}
 	type args struct {
 		ctx    context.Context
@@ -409,7 +427,7 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 			},
 			args: args{
 				ctx:    context.Background(),
-				doneCh: make(chan struct{}, 5),
+				doneCh: make(chan struct{}, 2),
 			},
 			expectChange: false,
 		},
@@ -424,7 +442,7 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 			},
 			args: args{
 				ctx:    context.Background(),
-				doneCh: make(chan struct{}, 5),
+				doneCh: make(chan struct{}, 2),
 			},
 			expectChange: true,
 		},
@@ -465,6 +483,7 @@ func TestDaemon_ProcessFilesInParallel(t *testing.T) {
 			if err != nil {
 				t.Errorf("TestDaemon_ProcessFilesInParallel - %s", err)
 			}
+			require.NotEmpty(t, files)
 			if tt.expectChange {
 				// simulate change
 				err := os.Chtimes(files[0].Path, time.Now(), time.Now())

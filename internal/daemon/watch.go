@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,32 +21,6 @@ type FileInfo struct {
 	ModTime time.Time
 }
 
-// CollectFiles checks if any watched file has changed.
-// The Walk function continues the walk while theere is no error and stops
-// when the filepath.WalkFunc exits with error.
-//nolint:unused,errcheck
-func (d *Daemon) walkThroughFiles(ctx context.Context, doneCh chan struct{}) {
-	filepath.Walk(d.BasePath, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() ||
-			strings.HasPrefix(path, ".git") ||
-			(!info.IsDir() && filepath.Ext(path) != d.Extention) {
-			return nil
-		}
-
-		fmt.Printf("FILE info:  %s\n", info.Name())
-
-		lastChecked := time.Now().Add(-d.frequency)
-		if info.ModTime().After(lastChecked) {
-			fmt.Printf("\tFile %s has changed\n", info.Name())
-			// trigger running of the command
-			doneCh <- struct{}{}
-			// return any known error to stop walking through the dir content
-			return io.EOF
-		}
-		return nil
-	})
-}
-
 // CollectFiles checks if any watched file has changed
 func (d *Daemon) CollectFiles(ctx context.Context) ([]FileInfo, error) {
 	var files []FileInfo
@@ -60,10 +32,10 @@ func (d *Daemon) CollectFiles(ctx context.Context) ([]FileInfo, error) {
 			return err // this will be nil if there is no problem with the file
 		}
 
-		if len(d.Excluded) != 0 {
+		if len(d.excluded) != 0 {
 			isExcl, err := d.IsExcluded(ctx, path, info.Name())
 			if err != nil {
-				panic(errors.Wrap(err, "cannot proccess exclusion of files"))
+				d.logger.Panic(errors.Wrap(err, "cannot proccess exclusion of files"))
 			}
 			if isExcl {
 				return nil
@@ -75,32 +47,13 @@ func (d *Daemon) CollectFiles(ctx context.Context) ([]FileInfo, error) {
 			Name:    info.Name(),
 			ModTime: info.ModTime(),
 		})
-		//fmt.Printf("FILE info:  %s - %s\n", path, info.Name())
-
 		return nil
 	})
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "error collecting files from %s", d.BasePath)
 	}
-
 	return files, nil
-}
-
-//nolint:unused
-func (d *Daemon) processFiles(ctx context.Context, files []FileInfo, doneCh chan struct{}) {
-
-	fmt.Println("GOT to processing ...")
-
-	for _, f := range files {
-		time.Sleep(100 * time.Millisecond)
-
-		lastChecked := time.Now().Add(-d.frequency)
-		if f.ModTime.After(lastChecked) {
-			fmt.Printf("File %s has changed\n", f.Name)
-			doneCh <- struct{}{}
-			break
-		}
-	}
 }
 
 // ProcessFilesInParallel checks files in parallel.
@@ -116,10 +69,10 @@ func (d *Daemon) ProcessFilesInParallel(ctx context.Context, files []FileInfo, d
 	// channel to continue looping.
 	// Note: I tried to use select default to continue the looping but that
 	// did not work.
-	fmt.Println("---------------")
+	d.logger.Infof("---------------")
 LOOP:
 	for _, f := range files {
-		fmt.Printf("--> processing file %s\n", f.Name)
+		d.logger.Infof(">>> processing file %s\n", f.Path)
 
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, f FileInfo, doneCh chan struct{}, stopCh chan struct{}) {
@@ -128,7 +81,7 @@ LOOP:
 
 			lastChecked := time.Now().Add(-d.frequency)
 			if f.ModTime.After(lastChecked) {
-				fmt.Printf("File %s has changed\n", f.Name)
+				d.logger.Infof("File %s has changed\n", f.Name)
 				stopCh <- struct{}{}
 				return
 			}
@@ -138,12 +91,12 @@ LOOP:
 		select {
 		case <-stopCh:
 			doneCh <- struct{}{}
-			fmt.Printf("\t--> finishing with file %s\n\n", f.Name)
+			d.logger.Debugf("\t--> finishing with file %s\n\n", f.Name)
 			break LOOP
 		case <-continueCh:
 		}
 	}
-	fmt.Println("---------------")
+	d.logger.Infof("---------------")
 
 	wg.Wait()
 }
@@ -153,8 +106,12 @@ func (d *Daemon) IsExcluded(ctx context.Context, path, name string) (bool, error
 	toExclude := false
 
 	for _, ex := range d.excluded {
+		if ex == "" {
+			continue
+		}
+
 		// deal with regex
-		if strings.ContainsAny(ex, "*?{}[]()+*") {
+		if strings.ContainsAny(ex, "*?{}[]()+") {
 
 			r, err := regexp.Compile(ex)
 			if err != nil {
@@ -163,11 +120,15 @@ func (d *Daemon) IsExcluded(ctx context.Context, path, name string) (bool, error
 			if r.MatchString(path) {
 				return true, nil
 			}
-			// deal with exact matches
-		} else if name == ex || path == ex || strings.Contains(path, ex) {
-			return true, nil
+			// deal with string matches
+		} else {
+			if name == ex || path == ex || strings.Contains(path, ex) {
+				return true, nil
+			}
 		}
+		toExclude = false
 	}
+
 	return toExclude, nil
 }
 
@@ -176,7 +137,7 @@ func (d *Daemon) runOutcomeChecker(cmdParts []string, sigCh chan os.Signal, done
 		for {
 			select {
 			case <-sigCh:
-				fmt.Println("You interrupted me 👹!")
+				d.logger.Info("You interrupted me 👹!\n\n")
 				os.Exit(0)
 			case <-doneCh:
 				d.cmdMux.Lock()
@@ -187,12 +148,12 @@ func (d *Daemon) runOutcomeChecker(cmdParts []string, sigCh chan os.Signal, done
 				cmd.Stderr = os.Stderr
 				err := cmd.Run()
 				if err != nil {
-					fmt.Printf("ERROR: %s\n", errors.Wrap(err, "error occurred processing during file watch"))
+					d.logger.Errorf("%s\n", errors.Wrap(err, "error occurred processing during file watch"))
 					cancelCh <- struct{}{}
 					d.cmdMux.Unlock()
 					continue
 				}
-				fmt.Print("command completed successfully\n\n")
+				d.logger.Info("command completed successfully\n\n")
 				d.cmdMux.Unlock()
 			}
 		}

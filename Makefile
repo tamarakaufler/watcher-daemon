@@ -12,6 +12,7 @@ endif
 deps:
 	@go mod download
 	@go mod tidy
+	@go mod vendor
 
 lint:
 	${GOLANGCI} -v run --out-format=line-number
@@ -25,7 +26,7 @@ build: LDFLAGS += -X 'main.GitSHA=${GIT_SHA}'
 build: LDFLAGS += -X 'main.ServiceName=${NAME}'
 build:
 	$(info building binary cmd/bin/$(NAME) with flags $(LDFLAGS))
-	@go build -race -o ./cmd/bin/$(NAME) -ldflags "$(LDFLAGS)" ./cmd/watcher-daemon/main.go
+	@go build -race -o cmd/bin/$(NAME) -ldflags "$(LDFLAGS)" cmd/watcher-daemon/main.go
 
 run:
 	cmd/bin/$(NAME)

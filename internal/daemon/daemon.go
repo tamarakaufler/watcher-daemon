@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // WatcherDaemon specifies what methods must be implemented
@@ -30,6 +30,9 @@ type Daemon struct {
 
 	excluded  []string
 	frequency time.Duration
+
+	logger   *logrus.Logger
+	LogLevel string `env:"WATCHER_DAEMON_LOG_LEVEL" envDefault:""`
 
 	// mutex protects sending on the doneChan
 	doneMux  *sync.Mutex
@@ -56,6 +59,8 @@ func New() (*Daemon, error) {
 	}
 	d.frequency = time.Duration(time.Duration(fr) * time.Second)
 
+	d.initialiseLogger()
+
 	d.cmdMux = &sync.Mutex{}
 	d.doneMux = &sync.Mutex{}
 
@@ -66,7 +71,8 @@ func New() (*Daemon, error) {
 
 // Watch watches for changes in files at regular intervals
 func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
-	fmt.Print("\nStarting the watcher daemon ⌚ 👀 ... \n\n")
+	d.logger.Infof("\nStarting the watcher daemon ⌚ 👀 ... \n\n")
+
 	cmdParts := strings.Split(d.Command, " ")
 
 	// use when a change is detected to avoid processing further files
@@ -85,7 +91,7 @@ func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
 		case <-tick.C:
 			files, err := d.CollectFiles(ctxR)
 			if err != nil {
-				fmt.Println(err)
+				d.logger.Warn(err)
 				continue
 			}
 
