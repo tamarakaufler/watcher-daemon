@@ -20,6 +20,5 @@ RUN go build -o ./bin/watcher-daemon ./cmd/watcher-daemon/main.go
 
 
 FROM alpine:3.13
-WORKDIR /app/basepath
 COPY --from=builder /app/bin/watcher-daemon /bin/watcher-daemon
 ENTRYPOINT [ "/bin/watcher-daemon" ]

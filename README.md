@@ -34,6 +34,24 @@ Quality of the Go code is checked using the golangci-lint utility.
 
 ## Usage
 
-make all
+a) without docker (example)
 
-WATCHER_DAEMON_EXCLUDED=internal/daemon/fixtures/basepath  WATCHER_DAEMON_FREQUENCY=3 make run
+  * make all
+  * WATCHER_DAEMON_EXCLUDED=internal/daemon/fixtures/basepath  WATCHER_DAEMON_FREQUENCY=3 make run
+
+b) with docker (example)
+
+  * docker build -t watcher-daemon:v1.0.0 .
+  * docker run -w /basedir -v $PWD:/basedir --env WATCHER_DAEMON_EXCLUDED=vendor --env WATCHER_DAEMON_FREQUENCY=3 watcher-daemon:v1.0.0
+
+      OR
+
+  * docker run -w /basedir -v $PWD:/basedir --env-file watcher_daemon.env watcher-daemon:v1.0.0
+
+  where watcher_daemon.env file contains:
+
+  WATCHER_DAEMON_EXCLUDED=vendor
+  WATCHER_DAEMON_FREQUENCY=3
+
+c) using docker image in the Quay registry
+    docker run -w /basedir -v $PWD:/basedir --env WATCHER_DAEMON_EXCLUDED=vendor --env WATCHER_DAEMON_FREQUENCY=3 quay.io/tamarakaufler/watcher-daemon:v1.0.0

@@ -72,7 +72,7 @@ func (d *Daemon) ProcessFilesInParallel(ctx context.Context, files []FileInfo, d
 	d.logger.Infof("---------------")
 LOOP:
 	for _, f := range files {
-		d.logger.Infof(">>> processing file %s\n", f.Path)
+		d.logger.Infof(">>> processing file %s", f.Path)
 
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, f FileInfo, doneCh chan struct{}, stopCh chan struct{}) {
@@ -81,7 +81,7 @@ LOOP:
 
 			lastChecked := time.Now().Add(-d.frequency)
 			if f.ModTime.After(lastChecked) {
-				d.logger.Infof("File %s has changed\n", f.Name)
+				d.logger.Infof("File %s has changed", f.Name)
 				stopCh <- struct{}{}
 				return
 			}
@@ -91,7 +91,7 @@ LOOP:
 		select {
 		case <-stopCh:
 			doneCh <- struct{}{}
-			d.logger.Debugf("\t--> finishing with file %s\n\n", f.Name)
+			d.logger.Debugf("\t--> finishing with file %s", f.Name)
 			break LOOP
 		case <-continueCh:
 		}
@@ -137,7 +137,7 @@ func (d *Daemon) runOutcomeChecker(cmdParts []string, sigCh chan os.Signal, done
 		for {
 			select {
 			case <-sigCh:
-				d.logger.Info("You interrupted me 👹!\n\n")
+				d.logger.Info("You interrupted me 👹!")
 				os.Exit(0)
 			case <-doneCh:
 				d.cmdMux.Lock()
@@ -148,12 +148,12 @@ func (d *Daemon) runOutcomeChecker(cmdParts []string, sigCh chan os.Signal, done
 				cmd.Stderr = os.Stderr
 				err := cmd.Run()
 				if err != nil {
-					d.logger.Errorf("%s\n", errors.Wrap(err, "error occurred processing during file watch"))
+					d.logger.Errorf("%s", errors.Wrap(err, "error occurred processing during file watch"))
 					cancelCh <- struct{}{}
 					d.cmdMux.Unlock()
 					continue
 				}
-				d.logger.Info("command completed successfully\n\n")
+				d.logger.Info("command completed successfully")
 				d.cmdMux.Unlock()
 			}
 		}

@@ -31,6 +31,10 @@ build:
 run:
 	cmd/bin/$(NAME)
 
+docker-run:
+	docker build -t watcher-daemon:v1.0.0 .
+	docker run -w /basedir -v $(PWD):/basedir --env WATCHER_DAEMON_EXCLUDED=vendor --env WATCHER_DAEMON_FREQUENCY=3 watcher-daemon:v1.0.0
+
 cover:
 	@LOG_LEVEL=debug TMP_COV=$(shell mktemp); \
 	go test -failfast -coverpkg=./... -coverprofile=$$TMP_COV ./... && \

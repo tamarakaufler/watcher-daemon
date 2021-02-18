@@ -71,7 +71,7 @@ func New() (*Daemon, error) {
 
 // Watch watches for changes in files at regular intervals
 func (d *Daemon) Watch(ctx context.Context, sigCh chan os.Signal) {
-	d.logger.Infof("\nStarting the watcher daemon ⌚ 👀 ... \n\n")
+	d.logger.Infof("Starting the watcher daemon ⌚ 👀 ... ")
 
 	cmdParts := strings.Split(d.Command, " ")
 
