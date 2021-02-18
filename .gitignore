@@ -17,5 +17,7 @@ cmd/bin/watcher-daemon
 
 *.swo
 *.swp
-*.bak
-*.orig
+*.bak*
+*.orig*
+
+Dockerfile*
