@@ -25,8 +25,8 @@ var _ (WatcherDaemon) = (*Daemon)(nil)
 type Daemon struct {
 	BasePath  string `env:"WATCHER_DAEMON_BASE_PATH" envDefault:"."`
 	Extention string `env:"WATCHER_DAEMON_EXTENSION" envDefault:".go"`
-	Excluded  string `env:"WATCHER_DAEMON_EXCLUDED" envDefault:""`    // provided as a comma separated string
-	Frequency string `env:"WATCHER_DAEMON_FREQUENCY" envDefault:"10"` // run frequency in seconds
+	Excluded  string `env:"WATCHER_DAEMON_EXCLUDED" envDefault:""`   // provided as a comma separated string
+	Frequency string `env:"WATCHER_DAEMON_FREQUENCY" envDefault:"5"` // run frequency in seconds
 
 	excluded  []string
 	frequency time.Duration

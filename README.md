@@ -4,9 +4,6 @@ Based on https://github.com/tamarakaufler/go-files-watcher. Version 2 of the sam
 
 Configuration of Daemon values is done through environment variables.
 
-### TODO
-Add more details
-
 ## Synopsis
 
 Go implementation of a daemon for montoring file changes and running a command when a change is detected.
