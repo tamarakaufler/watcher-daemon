@@ -126,9 +126,7 @@ func (d *Daemon) IsExcluded(ctx context.Context, path, name string) (bool, error
 				return true, nil
 			}
 		}
-		toExclude = false
 	}
-
 	return toExclude, nil
 }
 
