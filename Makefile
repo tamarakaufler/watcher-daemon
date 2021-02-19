@@ -43,4 +43,4 @@ cover:
 
 all: deps lint test build
 
-.PHONY: deps lint test cover build run
+.PHONY: deps lint test cover build run docker-run
