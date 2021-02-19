@@ -46,7 +46,7 @@ Makefile provides useful CLI commands for dev tasks:
   * To be able to use the -race flag when running tests, gcc and libc-dev must be installed
 
  image build for:
- 
+
  * ENV GOOS=linux
  * ENV GOARCH=amd64
 
