@@ -18,7 +18,7 @@ lint:
 	${GOLANGCI} -v run --out-format=line-number
 
 test:
-	go test --race -covermode=atomic -coverprofile=coverage.out ./...
+	go test -count=1 --race -covermode=atomic -coverprofile=coverage.out ./...
 
 build: LDFLAGS += -X 'main.Timestamp=$(shell date +%s)'
 build: LDFLAGS += -X 'main.Version=${VERSION}'
