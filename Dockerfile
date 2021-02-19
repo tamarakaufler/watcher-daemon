@@ -26,7 +26,7 @@ RUN go mod download
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ${GOPATH}/bin ${GOLANGCI_VERSION}
 
 RUN golangci-lint run --out-format=line-number
-RUN go test -count=1 --race -covermode=atomic -coverprofile=coverage.out ./...
+RUN go test -tags unit_tests -count=1 --race -covermode=atomic -coverprofile=coverage.out ./...
 
 RUN go build -o ./bin/watcher-daemon ./cmd/watcher-daemon/main.go
 
