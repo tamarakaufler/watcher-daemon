@@ -28,9 +28,27 @@ The list is processed and the file checks are parallelized, each running in a go
 the first change is detected, this particular run finishes, stopping the check of the rest
 of the files and cancelling already running gouroutines.
 
-Tests are provided.
-
 Quality of the Go code is checked using the golangci-lint utility.
+
+Makefile provides useful CLI commands for dev tasks:
+
+  * deps
+  * lint
+  * test
+  * cover
+  * build
+  * run
+  * docker-run
+
+### Containerization
+
+  * For golangci-lint to work either gcc and libc-dev needs to be installed or CGO_ENABLED=0 must be set
+  * To be able to use the -race flag when running tests, gcc and libc-dev must be installed
+
+ image build for:
+ 
+ * ENV GOOS=linux
+ * ENV GOARCH=amd64
 
 ## Usage
 
